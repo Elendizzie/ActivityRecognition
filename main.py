@@ -1,6 +1,10 @@
 
 from process_data import *
 from cnn import *
+import tensorflow as tf
+
+FLAGS = tf.app.flags.FLAGS
+
 
 def main():
 
@@ -20,7 +24,7 @@ def main():
 
     tmp = []
     for activity in np.unique(dataset["activity"]):
-        curset = dataset[dataset["activity"] == activity][:20000]
+        curset = dataset[dataset["activity"] == activity][:2000]
         tmp.append(curset)
 
     subset = pd.concat(tmp)

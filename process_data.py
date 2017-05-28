@@ -70,7 +70,6 @@ def data_set_prepare(segment_reshaped, labels):
     test_y = labels[~train_test_split]
 
     print
-    print train_x[0].shape, train_x[0][0].shape
     print "train_x shape: ", train_x.shape
     print "train_y shape: ", train_y.shape
     print "test_x shape: ", test_x.shape
