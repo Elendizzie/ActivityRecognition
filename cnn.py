@@ -1,5 +1,13 @@
 import tensorflow as tf
+import numpy as np
 
+batch_size = 10
+kernel_size = 60
+depth = 60
+hidden_nodes = 1000
+
+learning_rate = 1e-4
+training_epochs = 10
 
 
 def kernel_variable(shape):
@@ -64,21 +72,13 @@ def apply_max_pool(x, kernel_size, stride_size):
     return tf.nn.max_pool(x, ksize=[1, 1, kernel_size, 1],
                           strides=[1, 1, stride_size, 1], padding='VALID')
 
-def create_cnn(train_x, train_y, test_x, test_y):
+
+def prepare_cnn(train_x, train_y, test_x, test_y):
     input_height = 1
     input_width = train_x.shape[2]      #length of each chunck, 90
     num_labels = train_y.shape[1]       #length of total num of labels, 6
     num_channels = train_x.shape[3]     # a total of x, y, z, 3 axis
 
-
-    batch_size = 10
-    kernel_size = 60
-    depth = 60
-    hidden_nodes = 1000
-
-
-    learning_rate = 1e-4
-    training_epochs = 5
 
     total_batches = train_x.shape[0] #total number of segments in training data
     print "total training batches: ", total_batches
@@ -87,20 +87,63 @@ def create_cnn(train_x, train_y, test_x, test_y):
     X = tf.placeholder(tf.float32, shape=[None, input_height, input_width, num_channels])
     Y = tf.placeholder(tf.float32, shape=[None, num_labels])
 
+    '''
+    CNN Structure
+    filter [1, 60, 3, 60]
+    Input [1, 90, 3]
+    Conv1 [1, 31, 180] output size: [1, (N-F)/Stride + 1, num_channel * depth]
+    ReLu1 [1, 31, 180]
+    Pool1 [1, 6, 180]
+    filter [1, 6, 180, 6]
+    Conv2 [1, 1, 1080]
+    ReLu [1, 1, 1080]
+    Flattent Conv2 [1080, ]
+    FC Weight [1080, 1000] Bias [1000, ]
+    FC1 [1000, ]
+    Output Layer Weight [1000, 6] Bias [6, ]
+    Output [6,]
+    '''
+
+    #FWD Propagation
 
     conv1 = apply_depthwise_conv(X, kernel_size, num_channels, depth)
     print conv1
     pool1 = apply_max_pool(conv1, 20, 2)
     print pool1
-    # c = apply_depthwise_conv(p, 6, depth * num_channels, depth // 10)
-    #
-    # shape = c.get_shape().as_list()
-    # c_flat = tf.reshape(c, [-1, shape[1] * shape[2] * shape[3]])
-    #
-    # f_weights_l1 = weight_variable([shape[1] * shape[2] * depth * num_channels * (depth // 10), hidden_nodes])
-    # f_biases_l1 = bias_variable([hidden_nodes])
-    # f = tf.nn.tanh(tf.add(tf.matmul(c_flat, f_weights_l1), f_biases_l1))
-    #
-    # out_weights = weight_variable([hidden_nodes, num_labels])
-    # out_biases = bias_variable([num_labels])
-    # y_ = tf.nn.softmax(tf.matmul(f, out_weights) + out_biases)
+    conv2 = apply_depthwise_conv(pool1, 6, depth * num_channels, depth // 10)
+    print conv2
+    shape = conv2.get_shape().as_list()
+
+    #flatten the conv layer output
+    conv_flat = tf.reshape(conv2, [-1, shape[1] * shape[2] * shape[3]])
+
+    #prepare the fully connected layer, weight[1080,1000] bias[1000,]
+    fc_weight = kernel_variable([shape[1] * shape[2] * depth * num_channels * (depth // 10), hidden_nodes])
+    fc_bias = bias_variable([hidden_nodes])
+
+    fc = tf.matmul(conv_flat, fc_weight)
+    fc = fc + fc_bias
+    tanh = tf.nn.tanh(fc)
+
+    #prepare the output layer and softmax for final scores of corresponding labels
+    outlayer_weight = kernel_variable([hidden_nodes, num_labels])
+    outlayer_bias = bias_variable([num_labels])
+    outlayer = tf.matmul(tanh, outlayer_weight) + outlayer_bias
+    scores = tf.nn.softmax(outlayer)
+
+
+    #Back Propagation
+
+    '''
+    Minimize the negative loss likelihood loss function with SGD to get the maximum likelihood estimation
+    the loss function of a softmax finds the scores of all corrected labeled predictions, and calculates
+    the negative sum of the log likelihood of them.
+    '''
+    loss = -tf.reduce_sum(tf.log(scores)*Y)
+    SGD_optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
+
+    #Prediction
+    correct_prediction = tf.equal(tf.argmax(scores, 1), tf.argmax(Y,1))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+    return X, Y, loss, SGD_optimizer, accuracy
