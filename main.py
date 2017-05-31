@@ -1,4 +1,3 @@
-from process_data import *
 from cnn import *
 import tensorflow as tf
 import time
@@ -14,40 +13,10 @@ tf.app.flags.DEFINE_integer('num_gpus', 1, '''
 
 def main():
 
-    #dataset is a phandas data frame
-    dataset = read_data(file_path)
-    length = len(dataset['x-axis'])
-
-
-    #normalize each axis
-    dataset['x-axis'] = feature_normalize(dataset['x-axis'])
-    dataset['y-axis'] = feature_normalize(dataset['y-axis'])
-    dataset['z-axis'] = feature_normalize(dataset['z-axis'])
-
-    # for activity in np.unique(dataset["activity"]):
-    #     subset = dataset[dataset["activity"] == activity][:180]
-    #     plot_activity(activity, subset)
-
-    # tmp = []
-    # for activity in np.unique(dataset["activity"]):
-    #     curset = dataset[dataset["activity"] == activity][:80000]
-    #     tmp.append(curset)
-    #
-    # subset = pd.concat(tmp)
-
-
-    segment, labels = segment_signal(dataset)
-    num_segs =  len(segment)
-    labels = np.asarray(pd.get_dummies(labels), dtype=np.int8)
-    segment_reshaped = segment.reshape(num_segs, 1, 90, 3)
-
-    print
-    print "segment shape: " , segment.shape
-    print "labels shape: ", labels.shape
-    print "reshaped segment shape: ", segment_reshaped.shape
-
-    #split the dataset into 80% training and 20% testing set
-    train_x, train_y, test_x, test_y = data_set_prepare(segment_reshaped, labels)
+    train_x = np.load('segmented_data/train_x.npy')
+    train_y = np.load('segmented_data/train_y.npy')
+    test_x = np.load('segmented_data/test_x.npy')
+    test_y = np.load('segmented_data/test_y.npy')
 
     total_batches = train_x.shape[0]  # total number of segments in training data
     print "total training batches: ", total_batches
@@ -56,14 +25,12 @@ def main():
 
     cost_history = np.empty(shape=[1], dtype=float)
 
-
-
     '''
     Start the evaluation session
     '''
     start = time.time()
     print
-    with tf.Session() as sess:
+    with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
         tf.global_variables_initializer().run()
         for epoch in range(training_epochs):
             for batch in range(total_batches):

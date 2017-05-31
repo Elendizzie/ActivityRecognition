@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-batch_size = 10
+batch_size = 50
 kernel_size = 60
 depth = 60
 hidden_nodes = 1000
@@ -79,9 +79,7 @@ def prepare_cnn(train_x, train_y, test_x, test_y):
     num_labels = train_y.shape[1]       #length of total num of labels, 6
     num_channels = train_x.shape[3]     # a total of x, y, z, 3 axis
 
-
     total_batches = train_x.shape[0] #total number of segments in training data
-    print "total training batches: ", total_batches
 
     #shape [None,1,90,3]
     X = tf.placeholder(tf.float32, shape=[None, input_height, input_width, num_channels])
